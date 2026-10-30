@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Vector retrieval with seekdb",
+    "text": "seekdb is an embedded database for AI agents. It supports fulltext indexes and vector indexes in one engine. Hybrid retrieval combines MATCH AGAINST keyword candidates with l2_distance semantic candidates, then fuses the rankings with reciprocal rank fusion. HNSW and IVF are common approximate nearest neighbor indexes. Cosine similarity, inner product and L2 distance are common vector metrics."
+  },
+  {
+    "title": "Async Python patterns",
+    "text": "asyncio schedules coroutines on an event loop. await yields control so other tasks can run. asyncio.gather waits for several tasks concurrently. Cancellation is isolated with shield: cancelling one waiter must not cancel shared work. Avoid blocking calls inside the event loop, and always bound network operations with a timeout."
+  },
+  {
+    "title": "Coffee brewing notes",
+    "text": "For light roast coffee use water at 90 to 93 degrees Celsius. A common ratio is 1:15 coffee to water. The grind should feel like white sugar. Bloom for 30 seconds, then pour in two or three stages. The total brew time is about two minutes and thirty seconds."
+  },
+  {
+    "title": "PepsiCo 2022 10-K notes",
+    "text": "When reading a 10-K, locate the consolidated statement of income, the statement of cash flows and the balance sheet first. Unadjusted EBITDA can be estimated as operating profit plus depreciation and amortization. Free cash flow is operating cash flow minus capital expenditures. Segment data explains revenue by commercial category."
+  },
+  {
+    "title": "RAG context engineering",
+    "text": "Retrieval augmented generation works better when the context builder selects the exact evidence sentences for the current query. Preserve precise citations, control the UTF-8 byte budget and deduplicate overlapping chunks. Context compression and incremental transport reduce token cost without dropping source identity."
+  },
+  {
+    "title": "Qinghai Lake cycling",
+    "text": "The loop around Qinghai Lake is about 360 kilometers. The altitude is around 3200 meters, so allow time to acclimatize. Xihai Town, Heimahe and Gangcha are common supply stops. Watch for strong headwinds and ultraviolet exposure on the high plateau."
+  }
+]

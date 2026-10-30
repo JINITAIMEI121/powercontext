@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LocalMind · 端侧推理 + seekdb 混合检索</title>
+    <meta name="description" content="LocalMind 在浏览器本地运行 MiniLM 量化模型，用 seekdb 完成语义与全文混合检索。" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <div class="brand">
+          <div class="logo">LM</div>
+          <div>
+            <div class="brand-name">LocalMind</div>
+            <div class="brand-sub">端侧推理 · seekdb 混合检索</div>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <h1>文档留在本地，<br /><span>向量在浏览器里算</span></h1>
+          <p>
+            MiniLM-L6-v2 量化模型在浏览器内完成文档与查询向量化，
+            嵌入式 seekdb 负责全文索引、向量索引和 RRF 融合。没有在线 embedding API。
+          </p>
+          <div class="chips">
+            <span class="chip">Transformers.js</span>
+            <span class="chip">MiniLM-L6 q8</span>
+            <span class="chip">384 维</span>
+            <span class="chip">seekdb FULLTEXT + VECTOR</span>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div><strong id="stat-docs">—</strong><span>文档</span></div>
+          <div><strong id="stat-chunks">—</strong><span>片段</span></div>
+          <div><strong id="stat-model">加载中</strong><span>浏览器模型</span></div>
+        </div>
+      </header>
+
+      <div id="status-banner" class="banner">正在加载本地量化模型…</div>
+
+      <main>
+        <section class="grid two">
+          <article class="panel">
+            <div class="panel-title">
+              <h2>1. 建立本地索引</h2>
+              <span class="pill">浏览器内 embedding</span>
+            </div>
+            <p class="muted">载入示例文档，或粘贴/选择自己的文本；每个片段在浏览器里编码后写入 seekdb。</p>
+            <div class="row">
+              <button id="sample-btn" class="primary">载入示例文档</button>
+              <label class="file-label">选择 .txt / .md
+                <input id="file-input" type="file" accept=".txt,.md,text/plain,text/markdown" multiple />
+              </label>
+              <button id="reset-btn">清空索引</button>
+            </div>
+            <textarea id="corpus" rows="4" placeholder="也可以直接粘贴一段文本，再点击“建立索引”…"></textarea>
+            <div class="row">
+              <button id="build-btn" class="primary">建立索引</button>
+              <span id="index-progress" class="status"></span>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-title">
+              <h2>2. 混合检索</h2>
+              <span class="pill">关键词 + 语义</span>
+            </div>
+            <p class="muted">查询在浏览器里编码；seekdb 同时执行全文与向量候选，再用 RRF 融合。</p>
+            <div class="search-row">
+              <input id="query" placeholder="例如：hybrid retrieval、asyncio cancellation…" autocomplete="off" />
+              <button id="search-btn" class="primary">搜索</button>
+            </div>
+            <div class="row">
+              <button id="validate-btn">运行验证样例</button>
+              <span id="search-status" class="status"></span>
+            </div>
+            <div id="results" class="results"></div>
+            <div id="validation" class="validation"></div>
+          </article>
+        </section>
+
+        <section class="panel tech">
+          <h2>技术说明</h2>
+          <div class="tech-grid">
+            <div><b>端侧模型</b><span>Xenova/all-MiniLM-L6-v2，q8 量化 ONNX，WASM 单线程</span></div>
+            <div><b>浏览器向量化</b><span>Transformers.js mean pooling + L2 normalize，384 维</span></div>
+            <div><b>存储</b><span>嵌入式 seekdb：docs / chunks 表，chunks.embedding 为 VECTOR(384)</span></div>
+            <div><b>检索</b><span>MATCH … AGAINST 关键词候选 + l2_distance 语义候选，RRF 融合</span></div>
+            <div><b>延迟观测</b><span>页面显示查询 embedding 耗时、seekdb 检索耗时与总耗时</span></div>
+            <div><b>本地优先</b><span>服务只监听 127.0.0.1；文档与向量不出本机</span></div>
+          </div>
+          <p class="note">
+            这是 StepFun 赛题的可运行演示：浏览器端推理负责向量化，seekdb 负责数据与混合检索。
+            完整运行说明见仓库 <code>stepfun/README.md</code>，技术细节见 <code>stepfun/TECH_NOTE.md</code>。
+          </p>
+        </section>
+      </main>
+
+      <footer>
+        <div>LocalMind · 浏览器端 MiniLM + seekdb</div>
+        <div class="muted">不调用在线 embedding API · 数据留在本机</div>
+      </footer>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

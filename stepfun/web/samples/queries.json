@@ -1,0 +1,8 @@
+[
+  { "query": "hybrid retrieval fulltext vector fusion", "expect": "Vector retrieval with seekdb" },
+  { "query": "asyncio cancellation event loop", "expect": "Async Python patterns" },
+  { "query": "coffee water temperature ratio", "expect": "Coffee brewing notes" },
+  { "query": "EBITDA cash flow capital expenditures", "expect": "PepsiCo 2022 10-K notes" },
+  { "query": "RAG citation context budget", "expect": "RAG context engineering" },
+  { "query": "Qinghai Lake altitude supply stops", "expect": "Qinghai Lake cycling" }
+]
