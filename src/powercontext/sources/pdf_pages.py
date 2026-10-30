@@ -52,19 +52,156 @@ _QUERY_SYNONYMS = {
     "employee": ("employee", "employees", "headcount"),
 }
 _SECTION_BOOSTS = (
-    ("income statement", ("consolidated statement of income",), 15.0),
-    ("p&l", ("consolidated statement of income",), 15.0),
-    ("profit and loss", ("consolidated statement of income",), 15.0),
-    ("cash flow", ("consolidated statement of cash flows",), 15.0),
-    ("balance sheet", ("consolidated balance sheet",), 15.0),
-    ("legal", ("legal proceedings",), 15.0),
-    ("restructur", ("restructuring",), 6.0),
-    ("geograph", ("our operations", "north america", "europe", "asia pacific", "africa"), 6.0),
-    ("employee", ("employees",), 4.0),
-    ("ebitda", ("operating profit", "depreciation and amortization"), 4.0),
-    ("capex", ("capital expenditures",), 4.0),
-    ("revenue", ("net revenue",), 2.5),
-    ("margin", ("gross profit", "operating profit"), 2.5),
+    (
+        (
+            "income statement",
+            "p&l",
+            "profit and loss",
+            "operating margin",
+            "gross margin",
+            "operating income",
+            "operating profit",
+            "net income",
+            "net earnings",
+            "profit margin",
+            "effective tax",
+            "income tax",
+            "ebitda",
+            "cost of sales",
+            "cost of revenue",
+            "revenue change",
+            "sales",
+        ),
+        (
+            "consolidated statement of income",
+            "consolidated statements of income",
+            "consolidated statement of operations",
+            "consolidated statements of operations",
+            "statements of operations",
+            "statement of operations",
+            "summary of financial performance",
+        ),
+        15.0,
+    ),
+    (
+        (
+            "balance sheet",
+            "financial position",
+            "working capital",
+            "quick ratio",
+            "current ratio",
+            "current assets",
+            "current liabilities",
+            "total assets",
+            "total liabilities",
+            "liability",
+            "equity",
+            "receivable",
+            "inventory",
+            "debt",
+            "borrowings",
+        ),
+        (
+            "consolidated balance sheet",
+            "consolidated balance sheets",
+            "statement of financial position",
+            "statements of financial position",
+            "summary of financial performance",
+        ),
+        15.0,
+    ),
+    (
+        (
+            "cash flow",
+            "operating cash",
+            "free cash",
+            "capex",
+            "capital expenditure",
+            "capital expenditures",
+            "dividend",
+            "depreciation",
+            "amortization",
+            "dpo",
+            "days payable",
+            "ccc",
+            "cash conversion",
+        ),
+        (
+            "consolidated statement of cash flows",
+            "consolidated statements of cash flows",
+            "statement of cash flows",
+            "statements of cash flows",
+        ),
+        15.0,
+    ),
+    (
+        ("legal", "litigation", "lawsuit", "proceeding", "regulatory", "contingenc"),
+        ("legal proceedings", "litigation", "contingencies", "commitments and contingencies"),
+        15.0,
+    ),
+    (
+        ("effective tax", "tax rate", "income tax", "provision for income"),
+        ("effective tax rate", "income taxes", "provision for income taxes", "summary of financial performance"),
+        12.0,
+    ),
+    (
+        ("segment", "geograph", "customer", "product categor", "service categor", "primary customer"),
+        (
+            "summary of business segment data",
+            "business segment",
+            "segment data",
+            "customers",
+            "customer",
+            "geographic",
+            "our operations",
+        ),
+        12.0,
+    ),
+    (
+        ("product categor", "service categor", "segment", "segment data"),
+        ("summary of business segment data", "segment data"),
+        50.0,
+    ),
+    (
+        ("customer",),
+        ("customers", "customer"),
+        20.0,
+    ),
+    (
+        ("industry", "products and services", "major products", "major services"),
+        ("industry", "products", "services", "our business"),
+        10.0,
+    ),
+    (
+        ("cyclical", "risk factor", "subject to cyclical", "forward-looking"),
+        ("cyclical", "forward-looking statements", "risk factors"),
+        8.0,
+    ),
+    (
+        ("restructur", "acquisition", "business combination", "impairment"),
+        ("restructuring", "business combinations", "acquisitions", "impairment"),
+        8.0,
+    ),
+    (
+        ("inventory", "receivable", "accounts payable", "turnover"),
+        ("inventories", "accounts receivable", "accounts payable", "inventory turnover"),
+        8.0,
+    ),
+    (
+        ("dividend", "share repurchase", "stock repurchase"),
+        ("dividends", "stock repurchases", "shareholders' equity"),
+        8.0,
+    ),
+    (
+        ("card member", "retain", "business environment"),
+        ("card members", "business environment"),
+        8.0,
+    ),
+    (
+        ("geograph", "operate", "operations"),
+        ("our operations", "north america", "europe", "asia pacific", "africa"),
+        6.0,
+    ),
 )
 
 
@@ -299,11 +436,11 @@ def _rank_page_documents(
     average_length = sum(sum(counts.values()) for counts in token_counts) / document_count
     question_lower = question.lower()
     section_bonus = [0.0] * document_count
-    for cue, phrases, bonus in _SECTION_BOOSTS:
-        if cue not in question_lower:
+    for cues, phrases, bonus in _SECTION_BOOSTS:
+        if not any(cue in question_lower for cue in cues):
             continue
         for index, document in enumerate(documents):
-            text = document[2].lower()
+            text = re.sub(r"\s+", " ", document[2].lower())
             if any(phrase in text for phrase in phrases):
                 section_bonus[index] += bonus
     numbers = {term for term, _weight in query_terms if term.isdigit()}
