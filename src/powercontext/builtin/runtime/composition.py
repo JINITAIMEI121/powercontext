@@ -84,6 +84,7 @@ from powercontext.builtin.persistence.dream_schema import ensure_dream_schema
 from powercontext.builtin.persistence.memory_index import CompositeMemoryIndex, MemoryIndex
 from powercontext.builtin.persistence.oceanbase.experience_index import OceanBaseExperienceFTSIndex
 from powercontext.builtin.persistence.oceanbase.memory_index import (
+    OceanBaseHybridMemoryIndex,
     OceanBaseMemoryFTSIndex,
     OceanBaseMemoryVectorIndex,
 )
@@ -156,6 +157,8 @@ from powercontext.builtin.runtime.readiness import (
 )
 from powercontext.builtin.runtime.recall_sufficiency import RecallSufficiencyPolicy
 from powercontext.builtin.runtime.relational import RelationalContexts
+from powercontext.builtin.runtime.source_lifecycle import bootstrap_topic_visibility
+from powercontext.builtin.triggers.source_window import SOURCE_WINDOW_TRIGGER_NAME
 from powercontext.builtin.runtime.topic_memory_processing import (
     TopicMemoryWorkerSpec,
     run_topic_memory_worker,
@@ -665,6 +668,7 @@ async def open_builtin_runtime(
         if config.runtime.memory_rerank_enabled and configured_reranker is None:
             raise BuiltinConfigurationError("memory-reranker")
         _require_decision_backend(config.runtime, configured_decision)
+        await bootstrap_topic_visibility(runtime)
         yield runtime
 
 
@@ -770,6 +774,10 @@ def _artifact_processing_bindings(  # noqa: C901 - validate and assemble one reg
         else:
             entrypoint = partial(run_family_worker, FamilyWorkerSpec(config=config, worker_security=worker_security))
         interval = None if family == "profile" else automatic[family]
+        count_threshold = {
+            "memory": config.runtime.memory_source_count_threshold,
+            "topic-memory": config.runtime.topic_memory_source_count_threshold,
+        }.get(family)
         binding = canonical[family]
         configured.append(
             ArtifactProcessingBinding(
@@ -779,6 +787,17 @@ def _artifact_processing_bindings(  # noqa: C901 - validate and assemble one reg
                 max_workers=getattr(config.runtime, f"{prefix}_max_workers"),
                 worker_timeout_seconds=getattr(config.runtime, f"{prefix}_worker_timeout_seconds"),
                 automatic_processing_interval=None if interval is None else timedelta(seconds=float(interval)),
+                automatic_source_count_threshold=count_threshold,
+                automatic_pending_count=(
+                    _pending_source_count(
+                        contexts,
+                        SOURCE_WINDOW_TRIGGER_NAME
+                        if family == "memory"
+                        else TOPIC_MEMORY_SOURCE_WINDOW_BINDING,
+                    )
+                    if count_threshold is not None
+                    else None
+                ),
                 cron=config.runtime.profile_cron
                 if family == "profile" and config.runtime.profile_schedule_enabled
                 else None,
@@ -791,6 +810,16 @@ def _artifact_processing_bindings(  # noqa: C901 - validate and assemble one reg
         )
     _validate_processing_registrations(configured)
     return tuple(configured)
+
+
+def _pending_source_count(contexts: RelationalContexts, cursor_name: str):
+    async def pending(connection, scope_id: str) -> int:
+        state = await contexts.repositories.cursors.load(connection, scope_id, cursor_name)
+        high = await contexts.repositories.sources.journal_position(connection, scope_id)
+        cursor = 0 if state is None else state.cursor.sequence
+        return max(0, high - cursor)
+
+    return pending
 
 
 def _validate_processing_registrations(configured: Sequence[ArtifactProcessingBinding]) -> None:
@@ -960,10 +989,12 @@ async def open_builtin_contexts(
                 await contexts.aclose_usage_recorder()
         return
     experience_index = OceanBaseExperienceFTSIndex()
-    indexes = [OceanBaseMemoryFTSIndex()]
-    if embedding_model is not None:
-        indexes.append(OceanBaseMemoryVectorIndex(embedding_model.profile))
-    index = CompositeMemoryIndex(*indexes)
+    fts_index = OceanBaseMemoryFTSIndex()
+    index = (
+        OceanBaseHybridMemoryIndex(fts_index, OceanBaseMemoryVectorIndex(embedding_model.profile))
+        if embedding_model is not None
+        else fts_index
+    )
     topic_indexes: list[TopicMemoryIndex] = [OceanBaseTopicMemoryFTSIndex()]
     if embedding_model is not None:
         topic_indexes.append(OceanBaseTopicMemoryVectorIndex(embedding_model.profile))
