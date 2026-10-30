@@ -145,11 +145,19 @@ _SECTION_BOOSTS = (
         12.0,
     ),
     (
+        ("revenue change", "operating margin change", "results of operations", "management's discussion", "md&a"),
+        ("management's discussion and analysis", "results of operations"),
+        15.0,
+    ),
+    (
         ("segment", "geograph", "customer", "product categor", "service categor", "primary customer"),
         (
             "summary of business segment data",
             "business segment",
+            "reporting segment",
+            "reportable segment",
             "segment data",
+            "results of operations",
             "customers",
             "customer",
             "geographic",
@@ -166,6 +174,11 @@ _SECTION_BOOSTS = (
         ("customer",),
         ("customers", "customer"),
         20.0,
+    ),
+    (
+        ("customer concentration",),
+        ("customer concentration", "customers", "customer"),
+        50.0,
     ),
     (
         ("industry", "products and services", "major products", "major services"),
