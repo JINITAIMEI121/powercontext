@@ -1,0 +1,34 @@
+{
+  "queries": [
+    {
+      "query": "向量检索 数据库",
+      "expect_titles": ["向量数据库入门"],
+      "limit": 5
+    },
+    {
+      "query": "混合检索 全文索引",
+      "expect_titles": ["OceanBase seekdb 笔记"],
+      "limit": 5
+    },
+    {
+      "query": "asyncio 协程 事件循环",
+      "expect_titles": ["Python 异步编程"],
+      "limit": 5
+    },
+    {
+      "query": "手冲咖啡 水温 粉水比",
+      "expect_titles": ["手冲咖啡参数"],
+      "limit": 5
+    },
+    {
+      "query": "EBITDA 现金流 资本开支",
+      "expect_titles": ["财报分析：PepsiCo 2022"],
+      "limit": 5
+    },
+    {
+      "query": "环湖 海拔 补给",
+      "expect_titles": ["青海湖骑行路线"],
+      "limit": 5
+    }
+  ]
+}

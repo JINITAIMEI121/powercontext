@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NoteSeek · 本地笔记知识库</title>
+    <meta name="description" content="NoteSeek 是一个用 seekdb 做关键词 + 向量混合检索的本地研究笔记知识库。" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <div class="brand">
+          <div class="logo">NS</div>
+          <div>
+            <div class="brand-name">NoteSeek</div>
+            <div class="brand-sub">本地研究笔记 · seekdb 混合检索</div>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <h1>把零散笔记变成<br /><span>可检索、可引用的知识库</span></h1>
+          <p>
+            关键词全文索引 + 语义向量检索，在嵌入式 seekdb 中一次完成。
+            数据留在本机，搜索不经过任何在线模型。
+          </p>
+          <div class="chips">
+            <span class="chip">seekdb 嵌入式</span>
+            <span class="chip">FULLTEXT + VECTOR</span>
+            <span class="chip">本地优先</span>
+            <span class="chip">零 API Key</span>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div><strong id="note-count">—</strong><span>条笔记</span></div>
+          <div><strong>seekdb</strong><span>存储与检索</span></div>
+          <div><strong>RRF</strong><span>双路融合</span></div>
+        </div>
+      </header>
+
+      <div id="demo-banner" class="banner hidden">
+        当前是静态演示站点，搜索结果为预置样例。要体验实时读写，请按 README 在本地运行
+        <code>python app.py</code>。
+      </div>
+
+      <main>
+        <section class="search-card">
+          <div class="search-row">
+            <input id="query" type="search" placeholder="搜索你的笔记，例如：向量检索、asyncio、EBITDA…" autocomplete="off" />
+            <button id="search-btn">搜索</button>
+          </div>
+          <div class="examples">
+            <span>试试：</span>
+            <button class="example" data-query="向量检索 数据库">向量检索</button>
+            <button class="example" data-query="混合检索 全文索引">混合检索</button>
+            <button class="example" data-query="asyncio 协程">异步编程</button>
+            <button class="example" data-query="EBITDA 现金流">财报分析</button>
+          </div>
+          <div id="search-status" class="status"></div>
+          <div id="results" class="results"></div>
+        </section>
+
+        <section class="grid">
+          <article class="panel">
+            <h2>新增笔记</h2>
+            <p class="muted">写入后立刻建立全文与向量表示，下一次搜索即可命中。</p>
+            <label>标题<input id="new-title" maxlength="120" placeholder="例如：RAG 评估清单" /></label>
+            <label>正文<textarea id="new-body" rows="5" placeholder="粘贴一段笔记…"></textarea></label>
+            <button id="add-btn" class="primary">写入 seekdb</button>
+            <div id="add-status" class="status"></div>
+          </article>
+          <article class="panel">
+            <h2>它是怎么工作的</h2>
+            <ol class="steps">
+              <li><b>全文候选</b>：<code>MATCH … AGAINST</code> 命中关键词与术语。</li>
+              <li><b>语义候选</b>：<code>l2_distance</code> 在向量列上找相近主题。</li>
+              <li><b>RRF 融合</b>：两路排名归一后取交集，减少单路偏差。</li>
+              <li><b>引用回查</b>：结果保留笔记 ID，可回到原始正文核对。</li>
+            </ol>
+            <div class="stack">Python · seekdb · http.server · 单文件前端</div>
+          </article>
+        </section>
+
+        <section class="panel about">
+          <div>
+            <h2>关于 NoteSeek</h2>
+            <p class="muted">
+              NoteSeek 是为学习和科研场景做的本地笔记知识库：用嵌入式 seekdb 同时维护全文索引与向量列，
+              不用部署数据库服务，也不把笔记发给在线模型。当前页面是 Qoder Sites 静态演示；
+              在本地运行 <code>python app.py</code> 即可读写真实 seekdb 实例。
+            </p>
+          </div>
+          <div class="about-links">
+            <a href="https://github.com/JINITAIMEI121/powercontext/tree/2026-competition-ecosystem/qoder" target="_blank" rel="noreferrer">源码与运行说明</a>
+            <a href="https://github.com/JINITAIMEI121/powercontext/blob/2026-competition-ecosystem/qoder/QODER.md" target="_blank" rel="noreferrer">Qoder 开发记录</a>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <div>NoteSeek · 用 <b>Qoder</b> 构建 · 检索核心：<b>OceanBase seekdb</b></div>
+        <div class="muted">运行 <code>python seed.py &amp;&amp; python app.py</code> 启动本地完整版</div>
+      </footer>
+    </div>
+    <script src="/demo-data.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
