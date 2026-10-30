@@ -145,6 +145,17 @@ _SECTION_BOOSTS = (
         12.0,
     ),
     (
+        ("capital-intensive", "capital intensive"),
+        (
+            "consolidated statement of income",
+            "consolidated balance sheet",
+            "consolidated statement of cash flows",
+            "property, plant and equipment",
+            "capital expenditures",
+        ),
+        15.0,
+    ),
+    (
         ("revenue change", "operating margin change", "results of operations", "management's discussion", "md&a"),
         ("management's discussion and analysis", "results of operations"),
         15.0,
@@ -167,7 +178,13 @@ _SECTION_BOOSTS = (
     ),
     (
         ("product categor", "service categor", "segment", "segment data"),
-        ("summary of business segment data", "segment data"),
+        (
+            "summary of business segment data",
+            "segment data",
+            "by business segment",
+            "sales and operating income",
+            "performance by business segment",
+        ),
         50.0,
     ),
     (
@@ -177,7 +194,14 @@ _SECTION_BOOSTS = (
     ),
     (
         ("customer concentration",),
-        ("customer concentration", "customers", "customer"),
+        (
+            "customer concentration",
+            "customers",
+            "customer",
+            "one customer",
+            "customer accounted for",
+            "of our consolidated net revenue",
+        ),
         50.0,
     ),
     (
@@ -456,6 +480,13 @@ def _rank_page_documents(
             text = re.sub(r"\s+", " ", document[2].lower())
             if any(phrase in text for phrase in phrases):
                 section_bonus[index] += bonus
+    if "customer" in question_lower:
+        # Customer concentration is usually described in the early Business / Risk Factors pages.
+        for index, document in enumerate(documents):
+            if document[1][1] <= 20:
+                text = re.sub(r"\s+", " ", document[2].lower())
+                if "customer" in text:
+                    section_bonus[index] += 60.0
     numbers = {term for term, _weight in query_terms if term.isdigit()}
     scores: list[tuple[float, int]] = []
     for index, counts in enumerate(token_counts):
