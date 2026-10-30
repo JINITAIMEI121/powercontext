@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import hashlib
 import io
+import math
 import re
+from collections import Counter
 from urllib.parse import quote
 
 from pydantic import BaseModel, model_validator
@@ -37,6 +39,32 @@ _QUERY_TOKEN = re.compile(r"[A-Za-z]+|\d+")
 _QUERY_STOPWORDS = frozenset(
     "a an and are as at be by did do does for from had has have how in is it its of on or the to was were what "
     "when where which who why with year years company fiscal".split()
+)
+_QUERY_SYNONYMS = {
+    "geograph": ("geographic", "region", "regions", "country", "countries", "market", "markets", "operations"),
+    "legal": ("litigation", "proceeding", "proceedings", "claim", "claims", "regulatory", "lawsuit", "investigation"),
+    "battle": ("litigation", "proceeding", "proceedings", "claim", "claims"),
+    "restructur": ("restructuring", "impairment", "productivity", "charge", "charges", "severance"),
+    "ebitda": ("operating", "income", "depreciation", "amortization"),
+    "capex": ("capital", "expenditure", "expenditures", "property", "plant", "equipment"),
+    "revenue": ("revenue", "sales"),
+    "margin": ("margin", "operating profit", "gross profit"),
+    "employee": ("employee", "employees", "headcount"),
+}
+_SECTION_BOOSTS = (
+    ("income statement", ("consolidated statement of income",), 15.0),
+    ("p&l", ("consolidated statement of income",), 15.0),
+    ("profit and loss", ("consolidated statement of income",), 15.0),
+    ("cash flow", ("consolidated statement of cash flows",), 15.0),
+    ("balance sheet", ("consolidated balance sheet",), 15.0),
+    ("legal", ("legal proceedings",), 15.0),
+    ("restructur", ("restructuring",), 6.0),
+    ("geograph", ("our operations", "north america", "europe", "asia pacific", "africa"), 6.0),
+    ("employee", ("employees",), 4.0),
+    ("ebitda", ("operating profit", "depreciation and amortization"), 4.0),
+    ("capex", ("capital expenditures",), 4.0),
+    ("revenue", ("net revenue",), 2.5),
+    ("margin", ("gross profit", "operating profit"), 2.5),
 )
 
 
@@ -204,17 +232,18 @@ async def search_pdf_pages(
     if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
         raise ValueError("limit must be a positive integer")
 
-    variants = _query_variants(question)
-    per_query = min(max(limit * 4, limit), 100)
-    scores: dict[tuple[str, int], float] = {}
-    citations: dict[tuple[str, int], MemoryCitation] = {}
+    documents = await _page_documents(memory)
+    if documents:
+        ranked = _rank_page_documents(documents, question)
+        return tuple(documents[index][0] for index in ranked[:limit])
 
-    for variant_index, variant in enumerate(variants):
+    citations: dict[tuple[str, int], MemoryCitation] = {}
+    for variant in _query_variants(question):
         try:
-            page = await memory.search(SearchMemoryRequest(query=variant, mode="fts", limit=per_query))
+            page = await memory.search(SearchMemoryRequest(query=variant, mode="fts", limit=min(limit * 4, 100)))
         except Exception:
             continue
-        for rank, hit in enumerate(page.hits, start=1):
+        for hit in page.hits:
             citation = MemoryCitation(
                 memory_ref=hit.memory_ref,
                 entry_id=hit.entry_id,
@@ -225,17 +254,108 @@ async def search_pdf_pages(
             except Exception:
                 continue
             for reference in entry.entry.sources:
-                if reference.source_type != PDF_PAGE_SOURCE_NAME:
-                    continue
-                location = _page_location(reference.source_id)
-                if location is None:
-                    continue
-                key = location
-                scores[key] = scores.get(key, 0.0) + 1.0 / (60.0 + rank + variant_index * 0.01)
-                citations.setdefault(key, citation)
+                if reference.source_type == PDF_PAGE_SOURCE_NAME:
+                    location = _page_location(reference.source_id)
+                    if location is not None:
+                        citations.setdefault(location, citation)
+                    break
+    return tuple(citations.values())[:limit]
 
-    ordered = sorted(scores, key=lambda key: (-scores[key], key[0], key[1]))
-    return tuple(citations[key] for key in ordered[:limit])
+
+async def _page_documents(memory) -> tuple[tuple[MemoryCitation, tuple[str, int], str], ...]:
+    try:
+        entries = (await memory.list()).entries
+    except Exception:
+        return ()
+    documents: list[tuple[MemoryCitation, tuple[str, int], str]] = []
+    seen: set[tuple[str, int]] = set()
+    for row in entries:
+        for reference in row.entry.sources:
+            if reference.source_type != PDF_PAGE_SOURCE_NAME:
+                continue
+            location = _page_location(reference.source_id)
+            if location is None or location in seen:
+                break
+            seen.add(location)
+            text = row.entry.text
+            page_text = text.split("\n", 1)[1] if "\n" in text else text
+            documents.append((row.citation, location, page_text))
+            break
+    return tuple(documents)
+
+
+def _rank_page_documents(
+    documents: tuple[tuple[MemoryCitation, tuple[str, int], str], ...],
+    question: str,
+) -> list[int]:
+    query_terms = _weighted_query_terms(question)
+    if not query_terms:
+        return list(range(len(documents)))
+    token_counts = [Counter(_query_tokens(document[2])) for document in documents]
+    document_count = len(documents)
+    document_frequency = {
+        term: sum(1 for counts in token_counts if term in counts) for term, _weight in query_terms
+    }
+    average_length = sum(sum(counts.values()) for counts in token_counts) / document_count
+    question_lower = question.lower()
+    section_bonus = [0.0] * document_count
+    for cue, phrases, bonus in _SECTION_BOOSTS:
+        if cue not in question_lower:
+            continue
+        for index, document in enumerate(documents):
+            text = document[2].lower()
+            if any(phrase in text for phrase in phrases):
+                section_bonus[index] += bonus
+    numbers = {term for term, _weight in query_terms if term.isdigit()}
+    scores: list[tuple[float, int]] = []
+    for index, counts in enumerate(token_counts):
+        length = sum(counts.values())
+        score = section_bonus[index]
+        for term, weight in query_terms:
+            frequency = counts.get(term, 0)
+            if frequency == 0:
+                continue
+            inverse = math.log(1.0 + (document_count - document_frequency[term] + 0.5) / (document_frequency[term] + 0.5))
+            score += weight * inverse * frequency * 2.4 / (
+                frequency + 1.4 * (1.0 - 0.75 + 0.75 * length / max(1.0, average_length))
+            )
+        for number in numbers:
+            if number in counts:
+                score += 3.0
+        scores.append((score, index))
+    scores.sort(reverse=True)
+
+    positions = {document[1]: index for index, document in enumerate(documents)}
+    adjacency = [0.0] * document_count
+    for _score, index in scores[:5]:
+        document_id, page_number = documents[index][1]
+        for distance, bonus in ((1, 8.0), (2, 4.0)):
+            for neighbor in (page_number - distance, page_number + distance):
+                neighbor_index = positions.get((document_id, neighbor))
+                if neighbor_index is not None:
+                    adjacency[neighbor_index] = max(adjacency[neighbor_index], bonus)
+    scores = [(score + adjacency[index], index) for score, index in scores]
+    scores.sort(key=lambda item: (-item[0], documents[item[1]][1]))
+    return [index for _score, index in scores]
+
+
+def _weighted_query_terms(question: str) -> tuple[tuple[str, float], ...]:
+    terms: list[tuple[str, float]] = []
+    for token in _query_tokens(question):
+        if token in _QUERY_STOPWORDS:
+            continue
+        terms.append((token, 1.0))
+        for prefix, synonyms in _QUERY_SYNONYMS.items():
+            if token.startswith(prefix):
+                terms.extend((synonym, 0.55) for synonym in synonyms if " " not in synonym)
+    best: dict[str, float] = {}
+    for term, weight in terms:
+        best[term] = max(best.get(term, 0.0), weight)
+    return tuple(best.items())
+
+
+def _query_tokens(text: str) -> list[str]:
+    return [token.lower() for token in _QUERY_TOKEN.findall(text)]
 
 
 def _page_location(source_id: str) -> tuple[str, int] | None:
