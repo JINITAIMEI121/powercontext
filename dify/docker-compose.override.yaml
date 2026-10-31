@@ -1,0 +1,10 @@
+services:
+  api:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  plugin_daemon:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

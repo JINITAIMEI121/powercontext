@@ -1,0 +1,209 @@
+app:
+  description: 把每天的一句话存进 seekdb 罐头，下次翻出旧回忆的小应用
+  icon: 🧃
+  icon_background: '#E0F2FE'
+  icon_type: emoji
+  mode: advanced-chat
+  name: 记忆罐头
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+site:
+  chat_color_theme: null
+  chat_color_theme_inverted: false
+  copyright: null
+  custom_disclaimer: ''
+  default_language: en-US
+  description: null
+  icon: 🧃
+  icon_background: '#E0F2FE'
+  icon_type: emoji
+  input_placeholder: null
+  privacy_policy: null
+  show_workflow_steps: true
+  title: 记忆罐头
+  use_icon_as_answer_icon: false
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: e1
+      source: start
+      sourceHandle: source
+      target: http
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: e2
+      source: http
+      sourceHandle: source
+      target: code
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: answer
+      id: e3
+      source: code
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables: []
+      height: 90
+      id: start
+      position:
+        x: 80
+        y: 220
+      positionAbsolute:
+        x: 80
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: '{"user_id": "{{#sys.user_id#}}", "query": "{{#sys.query#}}"}'
+          type: json
+        desc: 调用 seekdb 记忆服务：召回旧回忆 + 生成回复 + 存档
+        headers: 'Content-Type: application/json'
+        method: post
+        params: ''
+        retry_config:
+          enabled: false
+          exponential_backoff:
+            enabled: false
+            max_interval: 10000
+            multiplier: 2
+          max_retries: 1
+          retry_interval: 1000
+        selected: false
+        ssl_verify: false
+        timeout:
+          connect: 10
+          max_connect_timeout: 10
+          max_read_timeout: 60
+          max_write_timeout: 60
+          read: 30
+          write: 30
+        title: 打开罐头
+        type: http-request
+        url: http://172.17.0.1:18700/chat
+      height: 90
+      id: http
+      position:
+        x: 420
+        y: 220
+      positionAbsolute:
+        x: 420
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "def main(http_body: str) -> dict:\n    import json\n    try:\n    \
+          \    d = json.loads(http_body)\n    except Exception:\n        return {\"\
+          reply\": \"罐头盖卡住了，稍后再试。\", \"total\": 0}\n    return {\"reply\": d.get(\"\
+          reply\", \"\"), \"total\": d.get(\"total\", 0)}\n"
+        code_language: python3
+        desc: 解析记忆服务返回
+        outputs:
+          reply:
+            children: null
+            type: string
+          total:
+            children: null
+            type: number
+        selected: false
+        title: 剥开罐头
+        type: code
+        variables:
+        - value_selector:
+          - http
+          - body
+          variable: http_body
+      height: 54
+      id: code
+      position:
+        x: 760
+        y: 220
+      positionAbsolute:
+        x: 760
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        answer: '{{#code.reply#}}
+
+
+          （罐头里现在有 {{#code.total#}} 条回忆）'
+        desc: ''
+        selected: false
+        title: 回复
+        type: answer
+        variables: []
+      height: 90
+      id: answer
+      position:
+        x: 1100
+        y: 220
+      positionAbsolute:
+        x: 1100
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
+  rag_pipeline_variables: []
