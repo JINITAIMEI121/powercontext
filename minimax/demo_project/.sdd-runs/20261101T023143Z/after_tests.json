@@ -1,0 +1,18 @@
+{
+  "target": {
+    "passed": true,
+    "returncode": 0,
+    "files": [
+      "tests/test_service_date_range.py"
+    ],
+    "output": ".....                                                                    [100%]\n5 passed in 0.00s\n"
+  },
+  "regression": {
+    "passed": true,
+    "returncode": 0,
+    "files": [
+      "tests/test_repository_regression.py"
+    ],
+    "output": ".......                                                                  [100%]\n7 passed in 0.00s\n"
+  }
+}

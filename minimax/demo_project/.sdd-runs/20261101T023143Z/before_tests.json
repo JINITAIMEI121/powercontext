@@ -1,0 +1,18 @@
+{
+  "target": {
+    "passed": false,
+    "returncode": 1,
+    "files": [
+      "tests/test_service_date_range.py"
+    ],
+    "output": "FFFFF                                                                    [100%]\n=================================== FAILURES ===================================\n_________________ test_filter_orders_supports_since_and_until __________________\n\n    def test_filter_orders_supports_since_and_until():\n>       rows = filter_orders(ORDERS, since=\"2026-02-01\", until=\"2026-03-31\")\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: filter_orders() got an unexpected keyword argument 'since'\n\ntests/test_service_date_range.py:12: TypeError\n_______________________ test_filter_orders_single_bound ________________________\n\n    def test_filter_orders_single_bound():\n>       assert [row[\"order_id\"] for row in filter_orders(ORDERS, since=\"2026-04-01\")] == [5]\n                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: filter_orders() got an unexpected keyword argument 'since'\n\ntests/test_service_date_range.py:17: TypeError\n____________________ test_invalid_range_raises_value_error _____________________\n\n    def test_invalid_range_raises_value_error():\n        with pytest.raises(ValueError) as exc:\n>           filter_orders(ORDERS, since=\"2026-05-01\", until=\"2026-01-01\")\nE           TypeError: filter_orders() got an unexpected keyword argument 'since'\n\ntests/test_service_date_range.py:23: TypeError\n________________________ test_input_list_is_not_mutated ________________________\n\n    def test_input_list_is_not_mutated():\n        snapshot = copy.deepcopy(ORDERS)\n>       rows = filter_orders(ORDERS, status=\"paid\", since=\"2026-03-01\")\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: filter_orders() got an unexpected keyword argument 'since'\n\ntests/test_service_date_range.py:29: TypeError\n_______________ test_repository_list_orders_supports_date_range ________________\n\n    def test_repository_list_orders_supports_date_range():\n>       rows = list_orders(status=\"paid\", since=\"2026-03-01\")\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: list_orders() got an unexpected keyword argument 'since'\n\ntests/test_service_date_range.py:35: TypeError\n=========================== short test summary info ============================\nFAILED tests/test_service_date_range.py::test_filter_orders_supports_since_and_until\nFAILED tests/test_service_date_range.py::test_filter_orders_single_bound - Ty...\nFAILED tests/test_service_date_range.py::test_invalid_range_raises_value_error\nFAILED tests/test_service_date_range.py::test_input_list_is_not_mutated - Typ...\nFAILED tests/test_service_date_range.py::test_repository_list_orders_supports_date_range\n5 failed in 0.01s\n"
+  },
+  "regression": {
+    "passed": true,
+    "returncode": 0,
+    "files": [
+      "tests/test_repository_regression.py"
+    ],
+    "output": ".......                                                                  [100%]\n7 passed in 0.00s\n"
+  }
+}
