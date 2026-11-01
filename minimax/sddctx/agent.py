@@ -58,7 +58,7 @@ def run_task(store, project: Path, task: str, task_id: str, provider: str,
             "provider": response["provider"], "model": response["model"],
             "run_dir": str(run_dir)}
         phase = "verified" if (after["target"]["passed"] and after["regression"]["passed"]) else "failed"
-        save_state(store, task_id, task, phase,
+        result["state_receipt"] = save_state(store, task_id, task, phase,
                    done=[f"由 {response['provider']} 生成并应用 {len(edits)} 处修改",
                          f"目标测试: {after['target']['passed']}",
                          f"回归测试: {after['regression']['passed']}"],

@@ -1,0 +1,134 @@
+任务：给订单查询增加 since/until 日期区间筛选，since 大于 until 时抛 ValueError，保持原有顺序不变
+
+# 适用规格
+[SPEC-003.2] 区间合法性校验 (v2) 来源 /Users/eieieiei/Documents/Qoder/2026-10-30/07d55855/minimax-sdd/demo_project/specs/SPEC-003-date-range.md:11
+当 `since` 与 `until` 同时给出且 `since > until` 时，必须抛出 `ValueError`，
+消息形如 `since must not be after until`。校验发生在筛选之前，任何一条记录都不应被返回。
+[SPEC-003.1] 支持日期区间筛选 (v2) 来源 /Users/eieieiei/Documents/Qoder/2026-10-30/07d55855/minimax-sdd/demo_project/specs/SPEC-003-date-range.md:3
+`service.filter_orders` 与 `repository.list_orders` 需要支持 `since` 与 `until` 两个可选参数，
+按订单 `order_date`（ISO 日期字符串）做闭区间筛选：`since <= order_date <= until`。
+只给出其中一个时按单边界筛选；两者都不给时行为与现在完全一致。
+[SPEC-002.1] 参数校验风格 (v4) 来源 /Users/eieieiei/Documents/Qoder/2026-10-30/07d55855/minimax-sdd/demo_project/specs/SPEC-002-validation.md:3
+所有查询参数在进入筛选逻辑前完成校验；非法输入抛出 `ValueError` 并在消息中写明参数名与实际值，
+禁止静默返回空列表。空字符串视为非法值。
+
+# 需要修改的文件
+--- src/orders/service.py ---
+"""Order query helpers."""
+
+from __future__ import annotations
+
+
+def filter_orders(orders, status=None, customer_id=None):
+    """Apply status/customer filters on an arbitrary order list (SPEC-001.1, SPEC-001.2)."""
+    selected = list(orders)
+    if status is not None:
+        selected = [row for row in selected if row["status"] == status]
+    if customer_id is not None:
+        selected = [row for row in selected if row["customer_id"] == customer_id]
+    return selected
+
+
+def total_amount(orders) -> float:
+    """Sum order amounts rounded to two decimals (SPEC-001.1)."""
+    return round(sum(float(row["amount"]) for row in orders), 2)
+
+
+--- src/orders/repository.py ---
+"""In-memory order repository."""
+
+from __future__ import annotations
+
+ORDERS: list[dict] = [
+    {"order_id": 1, "customer_id": 100, "status": "paid", "amount": 12.5, "order_date": "2026-01-05"},
+    {"order_id": 2, "customer_id": 100, "status": "shipped", "amount": 40.0, "order_date": "2026-02-11"},
+    {"order_id": 3, "customer_id": 200, "status": "paid", "amount": 7.25, "order_date": "2026-03-02"},
+    {"order_id": 4, "customer_id": 200, "status": "cancelled", "amount": 99.99, "order_date": "2026-03-19"},
+    {"order_id": 5, "customer_id": 300, "status": "paid", "amount": 3.4, "order_date": "2026-04-28"},
+]
+
+
+def list_orders(status=None, customer_id=None):
+    """Return orders filtered by status and customer (SPEC-001.1, SPEC-001.2)."""
+    selected = ORDERS
+    if status is not None:
+        selected = [row for row in selected if row["status"] == status]
+    if customer_id is not None:
+        selected = [row for row in selected if row["customer_id"] == customer_id]
+    return selected
+
+
+def get_order(order_id):
+    """Return a single order by primary key."""
+    for row in ORDERS:
+        if row["order_id"] == order_id:
+            return row
+    return None
+
+
+--- src/orders/repository.py ---
+"""In-memory order repository."""
+
+from __future__ import annotations
+
+ORDERS: list[dict] = [
+    {"order_id": 1, "customer_id": 100, "status": "paid", "amount": 12.5, "order_date": "2026-01-05"},
+    {"order_id": 2, "customer_id": 100, "status": "shipped", "amount": 40.0, "order_date": "2026-02-11"},
+    {"order_id": 3, "customer_id": 200, "status": "paid", "amount": 7.25, "order_date": "2026-03-02"},
+    {"order_id": 4, "customer_id": 200, "status": "cancelled", "amount": 99.99, "order_date": "2026-03-19"},
+    {"order_id": 5, "customer_id": 300, "status": "paid", "amount": 3.4, "order_date": "2026-04-28"},
+]
+
+
+def list_orders(status=None, customer_id=None):
+    """Return orders filtered by status and customer (SPEC-001.1, SPEC-001.2)."""
+    selected = ORDERS
+    if status is not None:
+        selected = [row for row in selected if row["status"] == status]
+    if customer_id is not None:
+        selected = [row for row in selected if row["customer_id"] == customer_id]
+    return selected
+
+
+def get_order(order_id):
+    """Return a single order by primary key."""
+    for row in ORDERS:
+        if row["order_id"] == order_id:
+            return row
+    return None
+
+
+--- src/orders/service.py ---
+"""Order query helpers."""
+
+from __future__ import annotations
+
+
+def filter_orders(orders, status=None, customer_id=None):
+    """Apply status/customer filters on an arbitrary order list (SPEC-001.1, SPEC-001.2)."""
+    selected = list(orders)
+    if status is not None:
+        selected = [row for row in selected if row["status"] == status]
+    if customer_id is not None:
+        selected = [row for row in selected if row["customer_id"] == customer_id]
+    return selected
+
+
+def total_amount(orders) -> float:
+    """Sum order amounts rounded to two decimals (SPEC-001.1)."""
+    return round(sum(float(row["amount"]) for row in orders), 2)
+
+
+# 必须通过的测试
+tests/test_service_date_range.py:21 :: test_invalid_range_raises_value_error (functional)
+tests/test_service_date_range.py:34 :: test_repository_list_orders_supports_date_range (functional)
+tests/test_service_date_range.py:11 :: test_filter_orders_supports_since_and_until (functional)
+tests/test_service_date_range.py:27 :: test_input_list_is_not_mutated (functional)
+tests/test_service_date_range.py:16 :: test_filter_orders_single_bound (functional)
+tests/test_repository_regression.py:32 :: test_service_filter_matches_repository (regression)
+tests/test_repository_regression.py:19 :: test_no_filter_keeps_order (regression)
+tests/test_repository_regression.py:11 :: test_customer_filter (regression)
+tests/test_repository_regression.py:7 :: test_status_filter (regression)
+tests/test_repository_regression.py:15 :: test_combined_filter (regression)
+tests/test_repository_regression.py:28 :: test_total_amount (regression)
+tests/test_repository_regression.py:23 :: test_get_order (regression)

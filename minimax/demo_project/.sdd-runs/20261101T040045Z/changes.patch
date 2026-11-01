@@ -1,0 +1,153 @@
+--- a/src/orders/service.py
++++ b/src/orders/service.py
+@@ -2,14 +2,69 @@
+ 
+ from __future__ import annotations
+ 
++from datetime import date
+ 
+-def filter_orders(orders, status=None, customer_id=None):
+-    """Apply status/customer filters on an arbitrary order list (SPEC-001.1, SPEC-001.2)."""
++
++def _parse_date_parameter(name, value):
++    """Parse and validate an optional ISO date parameter."""
++    if value is None:
++        return None
++    if isinstance(value, str) and value == "":
++        raise ValueError(f"{name} must not be empty (got {value!r})")
++    if not isinstance(value, str):
++        raise ValueError(f"{name} must be a valid ISO date string (got {value!r})")
++    try:
++        return date.fromisoformat(value)
++    except ValueError:
++        raise ValueError(
++            f"{name} must be a valid ISO date string (got {value!r})"
++        ) from None
++
++
++def _validate_query_parameters(status, customer_id, since, until):
++    """Validate all query parameters before applying any filters."""
++    if isinstance(status, str) and status == "":
++        raise ValueError(f"status must not be empty (got {status!r})")
++    if isinstance(customer_id, str) and customer_id == "":
++        raise ValueError(f"customer_id must not be empty (got {customer_id!r})")
++
++    since_date = _parse_date_parameter("since", since)
++    until_date = _parse_date_parameter("until", until)
++
++    if since_date is not None and until_date is not None and since_date > until_date:
++        raise ValueError("since must not be after until")
++
++    return since_date, until_date
++
++
++def _matches_date_range(row, since_date, until_date):
++    order_date = date.fromisoformat(row["order_date"])
++    if since_date is not None and order_date < since_date:
++        return False
++    if until_date is not None and order_date > until_date:
++        return False
++    return True
++
++
++def filter_orders(
++    orders, status=None, customer_id=None, since=None, until=None
++):
++    """Apply status, customer, and inclusive date-range filters."""
++    since_date, until_date = _validate_query_parameters(
++        status, customer_id, since, until
++    )
++
+     selected = list(orders)
+     if status is not None:
+         selected = [row for row in selected if row["status"] == status]
+     if customer_id is not None:
+         selected = [row for row in selected if row["customer_id"] == customer_id]
++    if since_date is not None or until_date is not None:
++        selected = [
++            row
++            for row in selected
++            if _matches_date_range(row, since_date, until_date)
++        ]
+     return selected
+ 
+ 
+
+--- a/src/orders/repository.py
++++ b/src/orders/repository.py
+@@ -1,6 +1,8 @@
+ """In-memory order repository."""
+ 
+ from __future__ import annotations
++
++from datetime import date
+ 
+ ORDERS: list[dict] = [
+     {"order_id": 1, "customer_id": 100, "status": "paid", "amount": 12.5, "order_date": "2026-01-05"},
+@@ -11,13 +13,64 @@
+ ]
+ 
+ 
+-def list_orders(status=None, customer_id=None):
+-    """Return orders filtered by status and customer (SPEC-001.1, SPEC-001.2)."""
++def _parse_date_parameter(name, value):
++    """Parse and validate an optional ISO date parameter."""
++    if value is None:
++        return None
++    if isinstance(value, str) and value == "":
++        raise ValueError(f"{name} must not be empty (got {value!r})")
++    if not isinstance(value, str):
++        raise ValueError(f"{name} must be a valid ISO date string (got {value!r})")
++    try:
++        return date.fromisoformat(value)
++    except ValueError:
++        raise ValueError(
++            f"{name} must be a valid ISO date string (got {value!r})"
++        ) from None
++
++
++def _validate_query_parameters(status, customer_id, since, until):
++    """Validate all query parameters before applying any filters."""
++    if isinstance(status, str) and status == "":
++        raise ValueError(f"status must not be empty (got {status!r})")
++    if isinstance(customer_id, str) and customer_id == "":
++        raise ValueError(f"customer_id must not be empty (got {customer_id!r})")
++
++    since_date = _parse_date_parameter("since", since)
++    until_date = _parse_date_parameter("until", until)
++
++    if since_date is not None and until_date is not None and since_date > until_date:
++        raise ValueError("since must not be after until")
++
++    return since_date, until_date
++
++
++def _matches_date_range(row, since_date, until_date):
++    order_date = date.fromisoformat(row["order_date"])
++    if since_date is not None and order_date < since_date:
++        return False
++    if until_date is not None and order_date > until_date:
++        return False
++    return True
++
++
++def list_orders(status=None, customer_id=None, since=None, until=None):
++    """Return orders filtered by status, customer, and inclusive date range."""
++    since_date, until_date = _validate_query_parameters(
++        status, customer_id, since, until
++    )
++
+     selected = ORDERS
+     if status is not None:
+         selected = [row for row in selected if row["status"] == status]
+     if customer_id is not None:
+         selected = [row for row in selected if row["customer_id"] == customer_id]
++    if since_date is not None or until_date is not None:
++        selected = [
++            row
++            for row in selected
++            if _matches_date_range(row, since_date, until_date)
++        ]
+     return selected
+ 
+ 

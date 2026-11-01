@@ -16,6 +16,16 @@ pip install -r requirements.txt pytest
 ./run_demo.sh --provider mock # 无模型凭据时，仅验证链路（结果不计入作品证据）
 ```
 
+PowerContext 通道（可选但为验收必需）：
+
+```bash
+pip install "powercontext[cli,server]==1.2.0"
+powercontext config init --template --output .env.pctx     # 存储选 sqlite
+set -a; . .env.pctx; set +a
+powercontext server run &                                   # 默认 http://127.0.0.1:8000
+export POWERCONTEXT_URI=http://127.0.0.1:8000
+```
+
 模型凭据从环境变量 `MINIMAX_API_KEY` 读取，或读取 `~/.config/oceanbase-2026/minimax_key`；
 接口与模型可用 `MINIMAX_API_URL` / `MINIMAX_MODEL` 覆盖，默认
 `https://api.minimax.cn/v1/chat/completions` + `MiniMax-M3.1-Flash`（OpenAI 兼容）。
@@ -37,7 +47,7 @@ pip install -r requirements.txt pytest
 | --- | --- | --- |
 | MiniMax | 读取上下文后生成/修改代码（`sddctx/model.py`，OpenAI 兼容接口），开发记录落在 `demo_project/.sdd-runs/<时间戳>/`：`prompt.txt`、`model_response.txt`、`changes.patch`、`before/after_tests.json` | `sddctx/model.py`、`sddctx/agent.py` |
 | seekdb | 存储规格条目、代码符号（含 AST 签名与内容哈希）、测试用例与任务状态，三张表都建 FULLTEXT 索引；上下文全部经 `MATCH ... AGAINST` 检索得到 | `sddctx/db.py`、`sddctx/ingest.py`、`sddctx/retrieve.py` |
-| PowerContext | 任务状态与验证结果的写入/回读通道（`POWERCONTEXT_URI` 设置后走 `powercontext` CLI；未设置时回落到 seekdb 的 `task_state` 表） | `sddctx/state.py` |
+| PowerContext | 任务进展与验证结果的跨进程存储：`POWERCONTEXT_URI` 指向 Server 时，`sddctx run` 通过 `POST /v1/memory/remember`（`kind=task_state`）写入并返回 citation；后续运行用 `POST /v1/memory/search` 读回，`status`/`follow-up` 据此决定是否需要继续改动 | `sddctx/state.py` |
 
 ## 检索设计
 
@@ -65,7 +75,8 @@ pip install -r requirements.txt pytest
 | 2 | `sddctx context "<任务>"` | 命中 `SPEC-003.*`+`SPEC-002.1`，列出 `filter_orders`/`list_orders` 等待改符号、5 条目标测试、7 条回归测试，全部带 `文件:行号` 来源 |
 | 3 | `sddctx run "<任务>" --provider minimax` | `before.target=false`（目标行为未实现）、`before.regression=true` |
 | 4 | 同上 | 模型产出 `edits`，写盘后 `after.target=true`、`after.regression=true`，`phase=verified` |
-| 5 | 新进程执行 `sddctx status` | 读回 done/todo/verification，含运行目录与模型名 |
+| 5 | 新进程执行 `sddctx status` | 读回 done/todo/verification；`run` 输出里的 `state_receipt.powercontext.citation` 即 PowerContext 条目引用 |
+| 5b | 先 `DELETE FROM task_state` 清空本地状态表，再执行 `sddctx status` 与 `sddctx follow-up` | `status` 返回 `source=powercontext` 且带 citation；`follow-up` 依据读回的状态判定「无需再次修改」 |
 | 6 | 改 `specs/SPEC-003-date-range.md` 的 `version` 与错误文案后 `sddctx ingest` | `sddctx context` 输出显示新版本与新内容（不使用固定答案） |
 | 7 | `sddctx follow-up "<任务>"` | 状态为 `verified` 且无待办时直接判定无需再改；有待办时把状态拼进新一轮上下文继续处理 |
 

@@ -1,0 +1,14 @@
+[
+  "tests/test_repository_regression.py::test_combined_filter",
+  "tests/test_repository_regression.py::test_customer_filter",
+  "tests/test_repository_regression.py::test_get_order",
+  "tests/test_repository_regression.py::test_no_filter_keeps_order",
+  "tests/test_repository_regression.py::test_service_filter_matches_repository",
+  "tests/test_repository_regression.py::test_status_filter",
+  "tests/test_repository_regression.py::test_total_amount",
+  "tests/test_service_date_range.py::test_filter_orders_single_bound",
+  "tests/test_service_date_range.py::test_filter_orders_supports_since_and_until",
+  "tests/test_service_date_range.py::test_input_list_is_not_mutated",
+  "tests/test_service_date_range.py::test_invalid_range_raises_value_error",
+  "tests/test_service_date_range.py::test_repository_list_orders_supports_date_range"
+]
