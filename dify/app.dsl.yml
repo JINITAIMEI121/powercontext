@@ -130,7 +130,7 @@ workflow:
           write: 30
         title: 打开罐头
         type: http-request
-        url: http://172.17.0.1:18700/chat
+        url: http://host.docker.internal:18700/chat
       height: 90
       id: http
       position:

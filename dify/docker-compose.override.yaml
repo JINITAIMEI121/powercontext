@@ -1,10 +1,39 @@
 services:
+  # Dify 的 HTTP 请求节点不直连目标，而是走 ssrf_proxy(squid)。squid 默认
+  # `http_access deny to_private_networks` 会拒掉所有 RFC1918 目的地址，
+  # 宿主机网关（Linux 上是 172.17.0.1）正在其中，所以必须同时做两件事：
+  #   1) host mapping：让 ssrf_proxy / api / worker / plugin_daemon 能解析
+  #      host.docker.internal -> host-gateway；
+  #   2) SSRF 放行：用 Dify 官方入口 SSRF_PROXY_ALLOW_PRIVATE_IPS /
+  #      _DOMAINS 生成 dify_allow_private.conf，该文件被 include 在
+  #      `deny to_private_networks` 之前，因此放行有效。
+  # 只配 extra_hosts 不配放行，请求仍会被 squid 以 TCP_DENIED/403 拒掉。
+  ssrf_proxy:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SSRF_PROXY_ALLOW_PRIVATE_IPS: ${MEMORY_HOST_IP:-172.17.0.1}
+      SSRF_PROXY_ALLOW_PRIVATE_DOMAINS: ${MEMORY_HOST_DOMAIN:-host.docker.internal}
+
+  agent_ssrf_proxy:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SSRF_PROXY_ALLOW_PRIVATE_IPS: ${MEMORY_HOST_IP:-172.17.0.1}
+      SSRF_PROXY_ALLOW_PRIVATE_DOMAINS: ${MEMORY_HOST_DOMAIN:-host.docker.internal}
+
   api:
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
   worker:
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  worker_beat:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   plugin_daemon:
     extra_hosts:
       - "host.docker.internal:host-gateway"

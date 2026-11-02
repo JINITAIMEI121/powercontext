@@ -31,7 +31,7 @@
 ```
 Dify 1.18 Chatflow「记忆罐头」
   ├─ 开始
-  ├─ HTTP Request：POST http://172.17.0.1:18700/chat
+  ├─ HTTP Request：POST http://host.docker.internal:18700/chat
   │     请求体 {"user_id":"{{#sys.user_id#}}","query":"{{#sys.query#}}"}
   ├─ Code（python3）：解析返回的 reply / total
   └─ Answer：输出 reply + 罐头条数
@@ -99,11 +99,23 @@ cp .env.example .env
 docker compose up -d
 ```
 
-`docker-compose.override.yaml`（本目录）需要合并进 Dify 的 compose 目录，作用：
+`docker-compose.override.yaml`（本目录）需要放到 Dify 的 `docker/` 目录下（同名即可自动合并），它做两件缺一不可的事：
 
-- 给 `api` / `worker` / `plugin_daemon` 增加 `host.docker.internal:host-gateway`；
-- 给 `ssrf_proxy` 增加 `SSRF_PROXY_ALLOW_PRIVATE_IPS=172.17.0.1`，让 HTTP 节点可以访问宿主机上的记忆服务；
-- 把可选的 `local_sandbox` 放到 `agent` profile（本作品不使用）。
+1. **host mapping**：给 `ssrf_proxy`、`agent_ssrf_proxy`、`api`、`worker`、`worker_beat`、`plugin_daemon` 加
+   `extra_hosts: host.docker.internal:host-gateway`。注意必须包含 `ssrf_proxy` 本身 —— HTTP 节点是经它转发的，
+   代理容器解析不到这个名字就会 502。
+2. **SSRF 放行**：给 `ssrf_proxy` 设 `SSRF_PROXY_ALLOW_PRIVATE_IPS=172.17.0.1` 与
+   `SSRF_PROXY_ALLOW_PRIVATE_DOMAINS=host.docker.internal`。Dify 的 `squid.conf.template` 里
+   `include /etc/squid/dify_allow_private.conf` 位于 `http_access deny to_private_networks` **之前**，
+   所以这两个官方变量是唯一有效的放行入口；宿主机网关 `172.17.0.1` 属于 RFC1918，不放行时请求会被判
+   `TCP_DENIED/403`，只配 `extra_hosts` 是不够的。
+
+改完需要重建代理容器让 entrypoint 重新生成白名单：
+
+```bash
+docker compose up -d --force-recreate ssrf_proxy agent_ssrf_proxy
+docker exec docker-ssrf_proxy-1 cat /etc/squid/dify_allow_private.conf   # 应看到两条 acl + http_access allow
+```
 
 首次打开 `http://localhost:18080/install` 设置管理员账号，然后在「工作室 → 导入应用」中选择 `app.dsl.yml`。
 
@@ -111,6 +123,26 @@ docker compose up -d
 
 应用发布后打开 `http://localhost:18080/chat/<站点访问码>`，输入任意一句话即可。
 数据写入 seekdb 的 `dify_memory.memories` 表。
+
+## 端到端验证
+
+`verify_e2e.sh` 逐段证明链路真的通了，任何一段失败都会以非零码退出并打印判据：
+
+| 步骤 | 判据 |
+| --- | --- |
+| 1. 记忆服务 + seekdb | `GET :18700/stats` 返回 200，并回显 seekdb 真实行数 |
+| 2. 代理解析 | `docker exec docker-ssrf_proxy-1 getent hosts host.docker.internal` 得到宿主网关 IP |
+| 3. 穿过 squid 打到宿主 | 在 `api` 容器内 `curl -x http://ssrf_proxy:3128 http://host.docker.internal:18700/stats` 返回 200；`ssrf_proxy` 访问日志里对应一条 `TCP_MISS/200`（不是 `TCP_DENIED/403`） |
+| 4. Dify 工作流 | 用应用的 API Key 连续调用两次 `/v1/chat-messages`，第二次回复包含「翻到一条旧回忆」 |
+| 5. 落库 | seekdb `select count(*)` 在两次调用之间递增，且新增行的内容与本次输入一致 |
+
+手工复现第 3 步（最容易踩坑的一段）：
+
+```bash
+docker exec docker-api-1 sh -lc \
+  'curl -sS -o /dev/null -w "%{http_code}\n" -x http://ssrf_proxy:3128 http://host.docker.internal:18700/stats'
+docker logs --tail 20 docker-ssrf_proxy-1 2>&1 | grep host.docker.internal
+```
 
 ## 验证
 
