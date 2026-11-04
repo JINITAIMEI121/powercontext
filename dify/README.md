@@ -58,7 +58,10 @@ seekdb（比赛提供的 seekdb 二进制，MySQL 协议端口 2882）
 | `app.dsl.yml` | Dify 应用 DSL（导出包内的 `app.yaml`），导入即可得到完整工作流 |
 | `docker-compose.override.yaml` | Dify 本地部署的端口补充、host 网关与 SSRF 放行配置 |
 | `screenshots/chat.png` | 真实对话截图（含第二次召回旧记忆） |
+| `screenshots/workflow.png` | Dify 工作流画布：HTTP 节点指向宿主上的记忆服务 |
 | `validate.sh` | 一键验证记忆服务与 seekdb 写入/召回 |
+| `verify_e2e.sh` | 端到端链路一键验证，逐段判据，任一段失败以非零码退出 |
+| `evidence/` | 一次真实运行的产物：`proxy_trace.txt`（squid 记到 `TCP_MISS/200` 而不是 `TCP_DENIED/403`）、`dify_turn_1.json` / `dify_turn_2.json`（第二次回复召回了第一次写入的记忆）、`seekdb_rows.txt`（落库行） |
 
 ## 本地复现
 
